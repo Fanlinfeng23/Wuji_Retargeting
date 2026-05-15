@@ -1,0 +1,130 @@
+---
+title: 安装指南
+---
+
+## 系统要求
+
+### 软件版本
+
+<table>
+  <thead>
+    <tr>
+      <th>软件</th>
+      <th>版本</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Wuji Hand SDK</td>
+      <td rowspan="2">参考<a href="https://docs.wuji.tech/docs/zh/wuji-hand/latest/release-notes/">版本发布记录</a>获取最近更新</td>
+    </tr>
+    <tr>
+      <td>固件</td>
+    </tr>
+  </tbody>
+</table>
+
+### 支持平台
+
+| ROS2 版本 | Ubuntu 版本 |
+|:----------|:------------|
+| Humble | 22.04 LTS |
+| Kilted | 24.04 LTS |
+
+## 安装指南
+
+<Callout type="info">
+请确保系统满足 [系统要求](#系统要求) 后再进行以下步骤。
+</Callout>
+
+### 安装 Wuji Hand SDK
+
+在安装 ROS2 驱动之前，需要先安装 Wuji Hand SDK：
+
+```bash
+# 替换 <version> 为实际版本号，如 1.5.0
+wget https://github.com/wuji-technology/wujihandpy/releases/download/v<version>/wujihandcpp-<version>-amd64.deb
+sudo apt install ./wujihandcpp-<version>-amd64.deb
+```
+
+### 安装 ROS2 驱动
+
+ROS2 驱动提供两种安装方式，可根据使用场景选择：
+
+#### 方式一：源码编译（推荐）
+
+**安装依赖**
+
+根据你的 Ubuntu 版本选择对应的命令：
+
+**Ubuntu 22.04 (ROS2 Humble)**
+
+```bash
+# 安装 ROS2 Humble 及依赖
+sudo apt update
+sudo apt install -y ros-humble-ros-base ros-humble-robot-state-publisher \
+    ros-humble-rviz2 ros-humble-sensor-msgs ros-humble-std-msgs \
+    python3-colcon-common-extensions python3-rosdep
+```
+
+**Ubuntu 24.04 (ROS2 Kilted)**
+
+```bash
+# 安装 ROS2 Kilted 及依赖
+sudo apt update
+sudo apt install -y ros-kilted-ros-base ros-kilted-robot-state-publisher \
+    ros-kilted-rviz2 ros-kilted-sensor-msgs ros-kilted-std-msgs \
+    python3-colcon-common-extensions python3-rosdep
+```
+
+**编译与构建**
+
+```bash
+# 克隆仓库
+git clone https://github.com/wuji-technology/wujihandros2.git
+cd wujihandros2
+
+# 拉取 URDF 模型子模块（必须）
+git submodule update --init --recursive
+
+# 加载 ROS2 环境，替换 <distro> 为实际安装的 ROS2 发行版
+source /opt/ros/<distro>/setup.bash
+
+# 编译
+colcon build
+
+# 加载工作空间
+source install/setup.bash
+```
+
+<Callout type="warning">
+编译前必须执行 `git submodule update --init --recursive` 拉取子模块。`external/wuji-hand-description/` 目录包含编译所需的 URDF 模型。
+</Callout>
+
+#### 方式二：Deb 包安装
+
+**Ubuntu 22.04 (ROS2 Humble)**
+
+```bash
+# 安装依赖
+sudo apt update
+sudo apt install -y ros-humble-ros-base ros-humble-robot-state-publisher \
+    ros-humble-sensor-msgs ros-humble-std-msgs
+
+# 从 GitHub Releases 下载并安装（替换 <version> 为实际版本号）
+wget https://github.com/wuji-technology/wujihandros2/releases/download/v<version>/ros-humble-wujihand_<version>_amd64.deb
+sudo apt install ./ros-humble-wujihand_<version>_amd64.deb
+```
+
+**Ubuntu 24.04 (ROS2 Kilted)**
+
+```bash
+# 安装依赖
+sudo apt update
+sudo apt install -y ros-kilted-ros-base ros-kilted-robot-state-publisher \
+    ros-kilted-sensor-msgs ros-kilted-std-msgs
+
+# 从 GitHub Releases 下载并安装（替换 <version> 为实际版本号）
+wget https://github.com/wuji-technology/wujihandros2/releases/download/v<version>/ros-kilted-wujihand_<version>_amd64.deb
+sudo apt install ./ros-kilted-wujihand_<version>_amd64.deb
+```

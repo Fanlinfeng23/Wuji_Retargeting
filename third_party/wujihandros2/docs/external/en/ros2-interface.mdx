@@ -1,0 +1,371 @@
+---
+title: ROS2 Interface
+---
+
+## Interface Reference
+
+### HandDiagnostics Message
+
+`wujihand_msgs/msg/HandDiagnostics`: Hardware diagnostics, published at 10Hz by default (see `diagnostics_rate`).
+
+```text
+std_msgs/Header header
+string handedness               # "left" or "right"
+float32 system_temperature      # System temperature (°C)
+float32 input_voltage           # Input voltage (V)
+float32[20] joint_temperatures  # Joint temperatures (°C)
+uint32[20] error_codes          # Error codes (0=normal)
+bool[20] enabled                # Joint enabled status
+float32[20] effort_limits       # Effort limit settings (A)
+```
+
+### JointState Message
+
+`sensor_msgs/msg/JointState`: Joint states, published at 1000Hz by default (see `publish_rate`).
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `position` | `float64[20]` | Joint positions (radians) |
+| `velocity` | `float64[20]` | Not used |
+| `effort` | `float64[20]` | Joint effort (amperes) |
+
+<Callout type="info">
+**About the Effort Field**
+
+Effort represents the actuator output in current space, filtered before output. It is not the actual measured current value; consider it as relative drive intensity.
+
+Typical use cases:
+- **Collision detection**: A sudden increase in effort indicates joint obstruction
+- **Load monitoring**: Calculate current output percentage via `effort / effort_limit`
+
+Default effort_limit is 1.5A, maximum 3.5A.
+</Callout>
+
+### SetEnabled Service
+
+`wujihand_msgs/srv/SetEnabled`: Enable or disable joints.
+
+```text
+# Request
+uint8 finger_id   # 0-4 or 255 (all fingers)
+uint8 joint_id    # 0-3 or 255 (all joints)
+bool enabled      # true=enable, false=disable
+---
+# Response
+bool success
+string message
+```
+
+### ResetError Service
+
+`wujihand_msgs/srv/ResetError`: Reset joint error states.
+
+```text
+# Request
+uint8 finger_id   # 0-4 or 255 (all fingers)
+uint8 joint_id    # 0-3 or 255 (all joints)
+---
+# Response
+bool success
+string message
+```
+
+## Service Calls
+
+### Enable/Disable Joints
+
+```bash
+# Disable all joints
+ros2 service call /hand_0/set_enabled wujihand_msgs/srv/SetEnabled \
+  "{finger_id: 255, joint_id: 255, enabled: false}"
+
+# Enable all joints
+ros2 service call /hand_0/set_enabled wujihand_msgs/srv/SetEnabled \
+  "{finger_id: 255, joint_id: 255, enabled: true}"
+
+# Enable only the index finger (finger_id=1)
+ros2 service call /hand_0/set_enabled wujihand_msgs/srv/SetEnabled \
+  "{finger_id: 1, joint_id: 255, enabled: true}"
+
+# Enable only the first joint of thumb
+ros2 service call /hand_0/set_enabled wujihand_msgs/srv/SetEnabled \
+  "{finger_id: 0, joint_id: 0, enabled: true}"
+```
+
+### Reset Errors
+
+```bash
+# Reset all joint errors
+ros2 service call /hand_0/reset_error wujihand_msgs/srv/ResetError \
+  "{finger_id: 255, joint_id: 255}"
+```
+
+## Topic Control
+
+### Send Joint Position Commands
+
+Joint positions are sent via the `/{hand_name}/joint_commands` topic using the `sensor_msgs/msg/JointState` message type.
+
+**Method 1: Position Array (20 joints)**
+
+```bash
+# Zero all joints
+ros2 topic pub /hand_0/joint_commands sensor_msgs/msg/JointState \
+  "{position: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]}" --once
+```
+
+**Method 2: Specify Joint Names**
+
+```bash
+# Control only two joints of the index finger
+ros2 topic pub /hand_0/joint_commands sensor_msgs/msg/JointState \
+  "{name: ['right_finger2_joint2', 'right_finger2_joint3'], position: [1.0, 1.0]}" --once
+```
+
+### Read Joint States
+
+```bash
+# Read joint states once (published at 1000Hz by default)
+ros2 topic echo /hand_0/joint_states --once
+
+# Read diagnostics (published at 10Hz by default)
+ros2 topic echo /hand_0/hand_diagnostics --once
+```
+
+## Code Examples
+
+The following examples demonstrate how to create a ROS2 node to control the dexterous hand:
+- Subscribe to joint state topics for real-time position feedback
+- Publish joint position commands to control hand movement
+
+### Python
+
+```python
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+from sensor_msgs.msg import JointState
+
+class WujiHandController(Node):
+    """Dexterous hand control node for subscribing to states and publishing commands"""
+
+    def __init__(self, hand_name='hand_0'):
+        super().__init__('wujihand_controller')
+        self.hand_name = hand_name
+        self.count = 0  # Message counter for throttling output
+
+        # Create publisher: send joint position commands to joint_commands topic
+        self.cmd_pub = self.create_publisher(
+            JointState,
+            f'/{hand_name}/joint_commands',
+            qos_profile_sensor_data
+        )
+
+        # Create subscriber: receive joint states from joint_states topic (1000Hz)
+        self.state_sub = self.create_subscription(
+            JointState,
+            f'/{hand_name}/joint_states',
+            self.state_callback,
+            qos_profile_sensor_data
+        )
+
+    def state_callback(self, msg):
+        """
+        Joint state callback
+        msg.position: Current positions of 20 joints (radians)
+        msg.effort: Current effort of 20 joints (amperes)
+        """
+        self.count += 1
+        if self.count % 100 == 0:  # Print every 100 messages (~10Hz)
+            # Print the 4 joint positions of the thumb (indices 0-3)
+            self.get_logger().info(f'Position: {msg.position[:4]}')
+
+    def send_positions(self, positions):
+        """
+        Send joint position command
+        positions: Array of 20 target positions for joints (radians)
+        """
+        msg = JointState()
+        msg.position = list(positions)
+        self.cmd_pub.publish(msg)
+
+def main():
+    # Initialize ROS2
+    rclpy.init()
+
+    # Create control node
+    node = WujiHandController(hand_name='hand_0')
+
+    # Send zero command to all joints (set all 20 joints to 0 radians)
+    node.send_positions([0.0] * 20)
+
+    # Enter event loop, continuously receive joint states
+    rclpy.spin(node)
+
+    # Cleanup
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+**How to Run**
+
+1. Save the above code as `wujihand_controller.py`
+
+2. Start the driver in terminal 1:
+```bash
+# Load ROS2 environment, replace <distro> with your installed ROS2 distribution
+source /opt/ros/<distro>/setup.bash
+# Navigate to driver workspace and run the following commands to source it (skip if installed via Deb)
+cd <workspace>
+source install/setup.bash
+ros2 launch wujihand_bringup wujihand.launch.py
+```
+
+3. Run the example code in terminal 2:
+```bash
+# Load ROS2 environment, replace <distro> with your installed ROS2 distribution
+source /opt/ros/<distro>/setup.bash
+python3 wujihand_controller.py
+```
+
+**Expected Output**
+
+The hand moves to zero position. Terminal continuously prints joint positions (~10Hz). Press `Ctrl+C` to exit:
+
+```text
+[INFO] [1769589384.755943411] [wujihand_controller]: Position: array('d', [0.048882766883356236, 0.007923863595842663, 0.03073836071041754, 0.03718776672849719])
+[INFO] [1769589384.855927131] [wujihand_controller]: Position: array('d', [0.048882766883356236, 0.007923863595842663, 0.03073836071041754, 0.03718776672849719])
+...
+```
+
+### C++
+
+```cpp
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
+
+/**
+ * Dexterous hand control node
+ * Functions: subscribe to joint states, publish position commands
+ */
+class WujiHandController : public rclcpp::Node {
+public:
+    WujiHandController(const std::string& hand_name = "hand_0")
+        : Node("wujihand_controller"), hand_name_(hand_name), count_(0)
+    {
+        // QoS configuration: use SensorDataQoS to match driver
+        auto qos = rclcpp::SensorDataQoS();
+
+        // Create publisher: send joint position commands to joint_commands topic
+        cmd_pub_ = this->create_publisher<sensor_msgs::msg::JointState>(
+            "/" + hand_name_ + "/joint_commands", qos);
+
+        // Create subscriber: receive joint states from joint_states topic (1000Hz)
+        state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+            "/" + hand_name_ + "/joint_states", qos,
+            std::bind(&WujiHandController::state_callback, this, std::placeholders::_1));
+    }
+
+    /**
+     * Send joint position command
+     * @param positions Array of 20 target positions for joints (radians)
+     */
+    void send_positions(const std::vector<double>& positions) {
+        auto msg = sensor_msgs::msg::JointState();
+        msg.position = positions;
+        cmd_pub_->publish(msg);
+    }
+
+private:
+    /**
+     * Joint state callback
+     * msg->position: Current positions of 20 joints (radians)
+     * msg->effort: Current effort of 20 joints (amperes)
+     */
+    void state_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+        count_++;
+        if (count_ % 100 == 0) {  // Print every 100 messages (~10Hz)
+            RCLCPP_INFO(this->get_logger(), "Position: [%.3f, %.3f, %.3f, %.3f]",
+                msg->position[0], msg->position[1], msg->position[2], msg->position[3]);
+        }
+    }
+
+    std::string hand_name_;
+    int count_;  // Message counter for throttling output
+    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr cmd_pub_;
+    rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr state_sub_;
+};
+
+int main(int argc, char** argv) {
+    // Initialize ROS2
+    rclcpp::init(argc, argv);
+
+    // Create control node
+    auto node = std::make_shared<WujiHandController>("hand_0");
+
+    // Send zero command to all joints (set all 20 joints to 0 radians)
+    node->send_positions(std::vector<double>(20, 0.0));
+    RCLCPP_INFO(node->get_logger(), "Sent zero position command");
+
+    // Enter event loop, continuously receive joint states
+    rclcpp::spin(node);
+
+    // Cleanup
+    rclcpp::shutdown();
+    return 0;
+}
+```
+
+**How to Run**
+
+C++ examples require creating a ROS2 package to compile.
+
+1. Create a test package:
+```bash
+cd ~/test
+# Load ROS2 environment, replace <distro> with your installed ROS2 distribution
+source /opt/ros/<distro>/setup.bash
+ros2 pkg create --build-type ament_cmake test_wujihand --dependencies rclcpp sensor_msgs
+```
+
+2. Save the above code as `~/test/test_wujihand/src/wujihand_controller.cpp`
+
+3. Add the following to the end of `~/test/test_wujihand/CMakeLists.txt`:
+```cmake
+add_executable(wujihand_controller src/wujihand_controller.cpp)
+ament_target_dependencies(wujihand_controller rclcpp sensor_msgs)
+install(TARGETS wujihand_controller DESTINATION lib/${PROJECT_NAME})
+```
+
+4. Start the driver in terminal 1:
+```bash
+# Load ROS2 environment, replace <distro> with your installed ROS2 distribution
+source /opt/ros/<distro>/setup.bash
+# Navigate to driver workspace and run the following commands to source it (skip if installed via Deb)
+cd <workspace>
+source install/setup.bash
+ros2 launch wujihand_bringup wujihand.launch.py
+```
+
+5. Build and run in terminal 2:
+```bash
+# Load ROS2 environment, replace <distro> with your installed ROS2 distribution
+source /opt/ros/<distro>/setup.bash
+cd ~/test
+colcon build --packages-select test_wujihand
+source ~/test/install/setup.bash
+ros2 run test_wujihand wujihand_controller
+```
+
+**Expected Output**
+
+The hand moves to zero position. Terminal continuously prints joint positions (~10Hz). Press `Ctrl+C` to exit:
+
+```text
+[INFO] [1769591460.127643591] [wujihand_controller]: Sent zero position command
+[INFO] [1769591460.591707131] [wujihand_controller]: Position: [0.043, 0.022, 0.034, 0.035]
+[INFO] [1769591460.691719595] [wujihand_controller]: Position: [0.044, 0.012, 0.035, 0.034]
+...
+```

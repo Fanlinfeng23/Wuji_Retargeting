@@ -1,0 +1,7 @@
+# Official manus_input_py config, specialized for one right MANUS glove.
+publish_rate_hz: 120.0
+publish_hand_topic: /hand_input
+include_right_hand: true
+include_left_hand: false
+left_glove_id: 0
+right_glove_id: 0

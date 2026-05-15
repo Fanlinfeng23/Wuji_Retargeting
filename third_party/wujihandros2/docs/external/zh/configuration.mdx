@@ -1,0 +1,119 @@
+---
+title: 启动与配置
+---
+
+## 启动命令
+
+| 命令 | 说明 |
+|:-----|:-----|
+| `ros2 launch wujihand_bringup wujihand.launch.py` | 仅启动驱动 |
+| `ros2 launch wujihand_bringup wujihand.launch.py rviz:=true` | 启动驱动并通过 RViz 可视化 |
+
+## 可配置参数
+
+<Callout type="info">
+左右手类型从硬件自动检测，无需手动指定。
+</Callout>
+
+| 参数 | 默认值 | 说明 |
+|:-----|:-------|:-----|
+| `hand_name` | `hand_0` | 命名空间，用于区分多手。 <br/> 示例：`ros2 launch wujihand_bringup wujihand.launch.py hand_name:=my_hand` |
+| `serial_number` | `""` | 设备序列号（空则自动检测） |
+| `publish_rate` | `1000.0` | 关节状态发布频率 (Hz) |
+| `filter_cutoff_freq` | `10.0` | 低通滤波截止频率 (Hz) |
+| `diagnostics_rate` | `10.0` | 诊断信息发布频率 (Hz) |
+| `rviz` | `false` | 是否启动 RViz 可视化 |
+
+## 多手配置
+
+当需要同时控制多只灵巧手时，可通过序列号和命名空间区分。
+
+如果打开新终端，需要重新加载 ROS2 环境
+```bash
+# 加载 ROS2 环境，替换 <distro> 为实际安装的 ROS2 发行版
+source /opt/ros/<distro>/setup.bash
+# 如使用源码编译，请叠加工作空间（Deb 包安装可跳过）
+# 将 <workspace> 替换为实际工作空间路径，如 ~/wujihandros2
+source <workspace>/install/setup.bash
+```
+
+```bash
+# 终端 1：启动左手
+ros2 launch wujihand_bringup wujihand.launch.py \
+    hand_name:=left_hand serial_number:=ABC123
+
+# 终端 2：启动右手
+ros2 launch wujihand_bringup wujihand.launch.py \
+    hand_name:=right_hand serial_number:=DEF456
+```
+
+### 运行多手演示
+
+多手环境下运行演示脚本时，通过 `--ros-args -p hand_name:=<hand-name>` 指定目标手：
+
+```bash
+# 对左手运行波浪演示
+ros2 run wujihand_bringup wave_demo.py --ros-args -p hand_name:=left_hand
+
+# 对右手运行波浪演示
+ros2 run wujihand_bringup wave_demo.py --ros-args -p hand_name:=right_hand
+```
+
+<Callout type="info">
+`hand_name` 需与启动驱动时指定的名称一致。
+</Callout>
+
+### 话题命名空间
+
+启动后，每只手会拥有独立的话题命名空间：
+
+```text
+# 左手话题
+/left_hand/joint_states
+/left_hand/joint_commands
+/left_hand/hand_diagnostics
+/left_hand/robot_description
+/left_hand/tf
+/left_hand/tf_static
+
+# 右手话题
+/right_hand/joint_states
+/right_hand/joint_commands
+/right_hand/hand_diagnostics
+/right_hand/robot_description
+/right_hand/tf
+/right_hand/tf_static
+```
+
+## 关节标识
+
+灵巧手共有 20 个关节（5 根手指 × 4 个关节/手指）。
+
+### 手指与关节编号
+
+[服务调用](./ros2-interface#服务调用)使用 `finger_id` 和 `joint_id`：
+
+| 参数 | 值与含义 |
+|:-----|:---------|
+| `finger_id` | <ul><li>0：拇指</li><li>1：食指</li><li>2：中指</li><li>3：无名指</li><li>4：小指</li><li>255：所有手指</li></ul> |
+| `joint_id` | <ul><li>0-3：各关节（0 → 3：近端 → 远端）</li><li>255：所有关节</li></ul> |
+
+### 关节名格式
+
+[话题控制](./ros2-interface#话题控制)使用完整关节名：`{handedness}_finger{1-5}_joint{1-4}`
+
+| 索引 | 关节名 (handedness=right) | 手指 |
+|:-----|:--------------------------|:-----|
+| 0-3 | right_finger1_joint1~4 | 拇指 |
+| 4-7 | right_finger2_joint1~4 | 食指 |
+| 8-11 | right_finger3_joint1~4 | 中指 |
+| 12-15 | right_finger4_joint1~4 | 无名指 |
+| 16-19 | right_finger5_joint1~4 | 小指 |
+
+### 索引计算
+
+```text
+index = finger_id * 4 + joint_id
+```
+
+例如：食指（finger_id=1）第三个关节（joint_id=2）的索引为 `1 * 4 + 2 = 6`。

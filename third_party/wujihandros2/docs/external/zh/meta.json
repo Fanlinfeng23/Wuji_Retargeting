@@ -1,0 +1,11 @@
+{
+  "title": "ROS2 使用说明",
+  "pages": [
+    "index",
+    "installation",
+    "quick-start",
+    "configuration",
+    "ros2-interface",
+    "appendix"
+  ]
+}

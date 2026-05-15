@@ -1,0 +1,19 @@
+# Head stereo camera configuration (unified_stereo_node.py runtime parameters)
+# Camera device path and physical parameters see: ../camera_config.yaml (head section)
+
+stereo_head:
+  # Device Paths
+  camera_device: "/dev/stereo_camera"      # Stereo camera device (symlink created by udev rules)
+
+  # Video Parameters
+  resolution:
+    width: 2560          # Total width for stereo (1280x2)
+    height: 720          # Single camera height (MJPG format supported)
+    fps: 30              # ROS2 publishing FPS
+                         # Note: PICO H.264 uses camera native FPS(60fps), captured by FFmpeg directly
+
+  
+  
+  # topics:
+  #   left: "/stereo/left/compressed"
+  #   right: "/stereo/right/compressed"

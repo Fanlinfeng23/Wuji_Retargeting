@@ -1,0 +1,62 @@
+---
+title: 附录
+---
+
+## 故障排查
+
+**Q: 设备被占用 (ERROR_BUSY)？**
+
+先终止已有的驱动进程：
+
+```bash
+pkill -f wujihand_driver_node
+pkill -f robot_state_publisher
+ros2 launch wujihand_bringup wujihand.launch.py
+```
+
+**Q: 话题或服务列表不完整？**
+
+ROS2 daemon 可能缓存了旧的节点信息：
+
+```bash
+# 重启 daemon
+ros2 daemon stop
+ros2 daemon start
+sleep 2
+
+# 重新查看
+ros2 topic list
+ros2 service list
+```
+
+或使用 `--no-daemon` 选项直接查询：
+
+```bash
+ros2 service list --no-daemon | grep -E "set_enabled|reset_error"
+```
+
+**Q: RViz 模型不显示？**
+
+1. 确认 **Fixed Frame** 设置为 `{hand_name}/palm_link`（如 `hand_0/palm_link`）
+2. 确认 **RobotModel** 的 **Description Topic** 设置为 `/{hand_name}/robot_description`
+3. 检查关节状态是否正常：
+
+```bash
+ros2 topic echo /hand_0/joint_states --once
+```
+
+## 错误码参考
+
+| 错误码 | 含义 | 处理方法 |
+|:-------|:-----|:---------|
+| 0 | 正常 | - |
+| 1 | 过温保护 | 等待冷却后重试 |
+| 2 | 过流保护 | 检查负载，调用 reset_error 服务 |
+| 3 | 通信超时 | 检查 USB 连接，重启驱动 |
+
+## 相关资源
+
+- **GitHub 仓库**：[wuji-technology/wujihandros2](https://github.com/wuji-technology/wujihandros2)
+- **Deb 包下载**：[GitHub Releases](https://github.com/wuji-technology/wujihandros2/releases)
+- **Wuji Hand SDK**：[GitHub Releases](https://github.com/wuji-technology/wujihandpy/releases)
+- **技术支持**：[support@wuji.tech](mailto:support@wuji.tech)

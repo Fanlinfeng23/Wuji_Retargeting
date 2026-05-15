@@ -1,0 +1,15 @@
+# Official wujihand_output config, specialized for one right Wuji Hand on /hand_0.
+input_source: "manus"
+
+left_hand:
+  serial_number: ""
+  name: ""
+
+right_hand:
+  serial_number: ""
+  name: "hand_0"
+
+driver:
+  publish_rate: 1000.0
+  filter_cutoff_freq: 10.0
+  diagnostics_rate: 10.0

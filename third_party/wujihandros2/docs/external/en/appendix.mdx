@@ -1,0 +1,62 @@
+---
+title: Appendix
+---
+
+## Troubleshooting
+
+**Q: Device Busy (ERROR_BUSY)?**
+
+Terminate the existing driver process first:
+
+```bash
+pkill -f wujihand_driver_node
+pkill -f robot_state_publisher
+ros2 launch wujihand_bringup wujihand.launch.py
+```
+
+**Q: Incomplete Topic or Service List?**
+
+The ROS2 daemon may have cached old node information:
+
+```bash
+# Restart daemon
+ros2 daemon stop
+ros2 daemon start
+sleep 2
+
+# Check again
+ros2 topic list
+ros2 service list
+```
+
+Or use the `--no-daemon` option for direct query:
+
+```bash
+ros2 service list --no-daemon | grep -E "set_enabled|reset_error"
+```
+
+**Q: RViz Model Not Displaying?**
+
+1. Confirm **Fixed Frame** is set to `{hand_name}/palm_link` (e.g., `hand_0/palm_link`)
+2. Confirm **RobotModel**'s **Description Topic** is set to `/{hand_name}/robot_description`
+3. Check if joint states are normal:
+
+```bash
+ros2 topic echo /hand_0/joint_states --once
+```
+
+## Error Code Reference
+
+| Error Code | Meaning | Solution |
+|:-----------|:--------|:---------|
+| 0 | Normal | - |
+| 1 | Over-temperature protection | Wait for cooling and retry |
+| 2 | Over-current protection | Check load, call reset_error service |
+| 3 | Communication timeout | Check USB connection, restart driver |
+
+## Related Resources
+
+- **GitHub Repository**: [wuji-technology/wujihandros2](https://github.com/wuji-technology/wujihandros2)
+- **Deb Package Downloads**: [GitHub Releases](https://github.com/wuji-technology/wujihandros2/releases)
+- **Wuji Hand SDK**: [GitHub Releases](https://github.com/wuji-technology/wujihandpy/releases)
+- **Technical Support**: [support@wuji.tech](mailto:support@wuji.tech)

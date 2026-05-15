@@ -1,0 +1,8 @@
+# Request
+uint8 finger_id   # 0-4 (thumb, index, middle, ring, little), 255 for all fingers
+uint8 joint_id    # 0-3 (mcp_abd, mcp_flex, pip, dip), 255 for all joints
+bool enabled      # true to enable, false to disable
+---
+# Response
+bool success
+string message

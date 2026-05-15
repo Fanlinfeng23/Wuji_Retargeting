@@ -1,0 +1,58 @@
+---
+title: 快速开始
+---
+
+## 启动驱动
+
+```bash
+# 加载 ROS2 环境，替换 <distro> 为实际安装的 ROS2 发行版
+source /opt/ros/<distro>/setup.bash
+# 如使用源码编译，请叠加工作空间（Deb 包安装可跳过）
+# 将 <workspace> 替换为实际工作空间路径，如 ~/wujihandros2
+source <workspace>/install/setup.bash
+
+# 启动驱动
+ros2 launch wujihand_bringup wujihand.launch.py
+```
+
+启动成功后会看到以下输出：
+
+```text
+[wujihand_driver]: Connected to WujiHand (right)
+[wujihand_driver]: WujiHand driver started (state: 1000.0 Hz, diagnostics: 10.0 Hz)
+```
+
+## 验证运行状态
+
+打开新终端，查看关节状态：
+
+```bash
+# 加载 ROS2 环境，替换 <distro> 为实际安装的 ROS2 发行版
+source /opt/ros/<distro>/setup.bash
+# 如使用源码编译，请叠加工作空间（Deb 包安装可跳过）
+# 将 <workspace> 替换为实际工作空间路径，如 ~/wujihandros2
+source <workspace>/install/setup.bash
+
+ros2 topic echo /hand_0/joint_states --once
+```
+
+## 运行演示
+
+```bash
+# 波浪演示：手指依次弯曲伸展
+ros2 run wujihand_bringup wave_demo.py
+```
+
+<Callout type="info">
+连接多只灵巧手时，需通过 `--ros-args -p hand_name:=<hand-name>` 指定目标手。详见[多手配置](./configuration#多手配置)。
+</Callout>
+
+## 启动 RViz 可视化
+
+```bash
+ros2 launch wujihand_bringup wujihand.launch.py rviz:=true
+```
+
+**运行效果**
+
+![RViz 可视化效果](../images/rviz-visualization.png)

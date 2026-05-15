@@ -1,0 +1,119 @@
+---
+title: Configuration
+---
+
+## Launch Commands
+
+| Command | Description |
+|:--------|:------------|
+| `ros2 launch wujihand_bringup wujihand.launch.py` | Launch driver only |
+| `ros2 launch wujihand_bringup wujihand.launch.py rviz:=true` | Launch driver with RViz visualization |
+
+## Configurable Parameters
+
+<Callout type="info">
+Handedness (left/right) is automatically detected from hardware. No manual specification required.
+</Callout>
+
+| Parameter | Default | Description |
+|:----------|:--------|:------------|
+| `hand_name` | `hand_0` | Namespace for distinguishing multiple hands. <br/> Example: `ros2 launch wujihand_bringup wujihand.launch.py hand_name:=my_hand` |
+| `serial_number` | `""` | Device serial number (auto-detect if empty) |
+| `publish_rate` | `1000.0` | Joint state publishing rate (Hz) |
+| `filter_cutoff_freq` | `10.0` | Low-pass filter cutoff frequency (Hz) |
+| `diagnostics_rate` | `10.0` | Diagnostics publishing rate (Hz) |
+| `rviz` | `false` | Whether to launch RViz visualization |
+
+## Multi-hand Configuration
+
+When controlling multiple dexterous hands simultaneously, use serial numbers and namespaces to distinguish them.
+
+If opening a new terminal, you need to source the ROS2 environment again
+```bash
+# Source ROS2 environment, replace <distro> with your ROS2 distribution
+source /opt/ros/<distro>/setup.bash
+# If built from source, overlay the workspace (Deb package users can skip)
+# Replace <workspace> with your workspace path, e.g., ~/wujihandros2
+source <workspace>/install/setup.bash
+```
+
+```bash
+# Terminal 1: Launch left hand
+ros2 launch wujihand_bringup wujihand.launch.py \
+    hand_name:=left_hand serial_number:=ABC123
+
+# Terminal 2: Launch right hand
+ros2 launch wujihand_bringup wujihand.launch.py \
+    hand_name:=right_hand serial_number:=DEF456
+```
+
+### Run Multi-hand Demos
+
+When running demo scripts in a multi-hand environment, specify the target hand with `--ros-args -p hand_name:=<hand-name>`:
+
+```bash
+# Run wave demo on the left hand
+ros2 run wujihand_bringup wave_demo.py --ros-args -p hand_name:=left_hand
+
+# Run wave demo on the right hand
+ros2 run wujihand_bringup wave_demo.py --ros-args -p hand_name:=right_hand
+```
+
+<Callout type="info">
+The `hand_name` must match the name specified when launching the driver.
+</Callout>
+
+### Topic Namespaces
+
+After launch, each hand has its own topic namespace:
+
+```text
+# Left hand topics
+/left_hand/joint_states
+/left_hand/joint_commands
+/left_hand/hand_diagnostics
+/left_hand/robot_description
+/left_hand/tf
+/left_hand/tf_static
+
+# Right hand topics
+/right_hand/joint_states
+/right_hand/joint_commands
+/right_hand/hand_diagnostics
+/right_hand/robot_description
+/right_hand/tf
+/right_hand/tf_static
+```
+
+## Joint Identification
+
+The dexterous hand has 20 joints (5 fingers × 4 joints per finger).
+
+### Finger and Joint IDs
+
+[Service Calls](./ros2-interface#service-calls) use `finger_id` and `joint_id`:
+
+| Parameter | Values and Meanings |
+|:----------|:--------------------|
+| `finger_id` | <ul><li>0: Thumb</li><li>1: Index</li><li>2: Middle</li><li>3: Ring</li><li>4: Pinky</li><li>255: All fingers</li></ul> |
+| `joint_id` | <ul><li>0-3: Individual joints (0 → 3: proximal → distal)</li><li>255: All joints</li></ul> |
+
+### Joint Name Format
+
+[Topic Control](./ros2-interface#topic-control) uses full joint names: `{handedness}_finger{1-5}_joint{1-4}`
+
+| Index | Joint Name (handedness=right) | Finger |
+|:------|:------------------------------|:-------|
+| 0-3 | right_finger1_joint1~4 | Thumb |
+| 4-7 | right_finger2_joint1~4 | Index |
+| 8-11 | right_finger3_joint1~4 | Middle |
+| 12-15 | right_finger4_joint1~4 | Ring |
+| 16-19 | right_finger5_joint1~4 | Pinky |
+
+### Index Calculation
+
+```text
+index = finger_id * 4 + joint_id
+```
+
+For example: The index finger (finger_id=1) third joint (joint_id=2) has index `1 * 4 + 2 = 6`.
