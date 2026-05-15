@@ -1,6 +1,6 @@
 # MANUS Metagloves Pro Teleoperation for Wuji Hand
 
-这是一个面向发布的 ROS2 仓库，用 MANUS Metagloves Pro 实时遥操 Wuji 灵巧手。运行链路严格采用 Wuji 官方 [`wuji-hand-teleop`](https://github.com/wuji-technology/wuji-hand-teleop) 的 MANUS 手套遥操方法，本仓库只做单右手启动封装、环境脚本、设备检查和 MANUS 消息兼容。
+这是一个 ROS2 仓库，用 MANUS Metagloves Pro 实时遥操 Wuji 灵巧手。运行链路严格采用 Wuji 官方 [`wuji-hand-teleop`](https://github.com/wuji-technology/wuji-hand-teleop) 的 MANUS 手套遥操方法，本仓库只做单右手启动封装、环境脚本、设备检查和 MANUS 消息兼容。
 
 ```text
 MANUS Metagloves Pro
